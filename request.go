@@ -27,7 +27,11 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
+
+// ErrSessionExpired indicate the session is expired.
+var ErrSessionExpired = errors.New("Session expired")
 
 // Request Methods
 
@@ -52,11 +56,12 @@ func NewAPIRequest(method string, endpoint string, payload io.Reader) *APIReques
 }
 
 type Requester struct {
-	Base      string
-	BasicAuth *BasicAuth
-	Client    *http.Client
-	CACert    []byte
-	SslVerify bool
+	Base          string
+	BasicAuth     *BasicAuth
+	sessionCookie *http.Cookie
+	Client        *http.Client
+	CACert        []byte
+	SslVerify     bool
 }
 
 func (r *Requester) SetCrumb(ar *APIRequest) error {
@@ -216,7 +221,14 @@ func (r *Requester) Do(ar *APIRequest, responseStruct interface{}, options ...in
 	}
 
 	if r.BasicAuth != nil {
-		req.SetBasicAuth(r.BasicAuth.Username, r.BasicAuth.Password)
+		if r.sessionCookie != nil {
+			if r.sessionCookie.Expires.Second() < time.Now().Second() {
+				return nil, ErrSessionExpired
+			}
+			req.AddCookie(r.sessionCookie)
+		} else {
+			req.SetBasicAuth(r.BasicAuth.Username, r.BasicAuth.Password)
+		}
 	}
 
 	for k := range ar.Headers {
