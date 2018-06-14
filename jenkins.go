@@ -63,6 +63,15 @@ func (j *Jenkins) Init() (*Jenkins, error) {
 		return nil, errors.New("Connection Failed, Please verify that the host and credentials are correct.")
 	}
 
+	for _, cc := range rsp.Cookies() {
+		println("has cookies")
+		if strings.Contains(cc.Name, "JSESSIONID") {
+			j.Requester.sessionCookie = cc
+			println(cc.Raw)
+			break
+		}
+	}
+
 	return j, nil
 }
 
