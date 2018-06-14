@@ -64,10 +64,8 @@ func (j *Jenkins) Init() (*Jenkins, error) {
 	}
 
 	for _, cc := range rsp.Cookies() {
-		println("has cookies")
 		if strings.Contains(cc.Name, "JSESSIONID") {
 			j.Requester.sessionCookie = cc
-			println(cc.Raw)
 			break
 		}
 	}
