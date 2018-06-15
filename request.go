@@ -27,7 +27,11 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
+
+// ErrSessionExpired indicate the session is expired.
+var ErrSessionExpired = errors.New("Session expired")
 
 // Request Methods
 
@@ -218,6 +222,9 @@ func (r *Requester) Do(ar *APIRequest, responseStruct interface{}, options ...in
 
 	if r.BasicAuth != nil {
 		if r.sessionCookie != nil {
+			if r.sessionCookie.Expires.Second() < time.Now().Second() {
+				return nil, ErrSessionExpired
+			}
 			req.AddCookie(r.sessionCookie)
 		} else {
 			req.SetBasicAuth(r.BasicAuth.Username, r.BasicAuth.Password)
