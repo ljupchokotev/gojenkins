@@ -109,9 +109,9 @@ type BuildResponse struct {
 		FileName     string `json:"fileName"`
 		RelativePath string `json:"relativePath"`
 	} `json:"artifacts"`
-	Building  bool   `json:"building"`
-	BuiltOn   string `json:"builtOn"`
-	ChangeSet struct {
+	Building   bool   `json:"building"`
+	BuiltOn    string `json:"builtOn"`
+	ChangeSets []struct {
 		Items []struct {
 			AffectedPaths []string `json:"affectedPaths"`
 			Author        struct {
@@ -134,7 +134,7 @@ type BuildResponse struct {
 			Module   string
 			Revision int
 		} `json:"revision"`
-	} `json:"changeSet"`
+	} `json:"changeSets"`
 	Culprits          []Culprit   `json:"culprits"`
 	Description       interface{} `json:"description"`
 	Duration          int64       `json:"duration"`
@@ -382,34 +382,36 @@ func (b *Build) GetDuration() int64 {
 	return b.Raw.Duration
 }
 
-func (b *Build) GetRevision() string {
-	vcs := b.Raw.ChangeSet.Kind
-
-	if vcs == "git" || vcs == "hg" {
-		for _, a := range b.Raw.Actions {
-			if a.LastBuiltRevision.SHA1 != "" {
-				return a.LastBuiltRevision.SHA1
+func (b *Build) GetRevision() []string {
+	revision := []string{}
+	for _, changeSet := range b.Raw.ChangeSets {
+		vcs := changeSet.Kind
+		if vcs == "git" || vcs == "hg" {
+			for _, a := range b.Raw.Actions {
+				if a.LastBuiltRevision.SHA1 != "" {
+					revision = append(revision, a.LastBuiltRevision.SHA1)
+				}
+				if a.MercurialRevisionNumber != "" {
+					revision = append(revision, a.MercurialRevisionNumber)
+				}
 			}
-			if a.MercurialRevisionNumber != "" {
-				return a.MercurialRevisionNumber
-			}
+		} else if vcs == "svn" {
+			revision = append(revision, strconv.Itoa(changeSet.Revisions[0].Revision))
 		}
-	} else if vcs == "svn" {
-		return strconv.Itoa(b.Raw.ChangeSet.Revisions[0].Revision)
 	}
-	return ""
+	return revision
 }
 
 func (b *Build) GetRevisionBranch() string {
-	vcs := b.Raw.ChangeSet.Kind
-	if vcs == "git" {
-		for _, a := range b.Raw.Actions {
-			if len(a.LastBuiltRevision.Branch) > 0 && a.LastBuiltRevision.Branch[0].SHA1 != "" {
-				return a.LastBuiltRevision.Branch[0].SHA1
+	for _, changeSet := range b.Raw.ChangeSets {
+		vcs := changeSet.Kind
+		if vcs == "git" {
+			for _, a := range b.Raw.Actions {
+				if len(a.LastBuiltRevision.Branch) > 0 && a.LastBuiltRevision.Branch[0].SHA1 != "" {
+					return a.LastBuiltRevision.Branch[0].SHA1
+				}
 			}
 		}
-	} else {
-		panic("Not implemented")
 	}
 	return ""
 }
